@@ -114,6 +114,8 @@ export default function App() {
   const [generating, setGen]    = useState(false)
   const [genError, setGenErr]   = useState(null)
   const [showNewProj, setNewProj] = useState(false)
+  const [apiKey, setApiKey]       = useState(() => localStorage.getItem('anthropic_key') || '')
+  const [showKeyModal, setKeyModal] = useState(false)
   const saveTimer = useRef(null)
   const t = T[lang]
 
@@ -204,9 +206,10 @@ export default function App() {
   // ── AI Generate ─────────────────────────────────────────
   async function handleGenerate() {
     if (!mtg?.notes?.trim()) return
+    if (!apiKey) { setKeyModal(true); return }
     setGen(true); setGenErr(null)
     try {
-      const result = await generateMOM(mtg, proj, mtg.lang || lang)
+      const result = await generateMOM(mtg, proj, mtg.lang || lang, apiKey)
       const updated = { ...mtg, mom: result }
       saveMeeting(updated)
       setMom(result); setView('mom')
@@ -273,6 +276,10 @@ export default function App() {
             style={{ ...S.ghost, fontSize: 12, padding: '3px 10px' }}>
             {lang === 'en' ? 'عربي' : 'English'}
           </button>
+          <button onClick={() => setKeyModal(true)} title="API Key settings"
+            style={{ ...S.ghost, fontSize: 15, padding: '3px 9px', color: apiKey ? TEAL : '#e07000', borderColor: apiKey ? '#ccd4d6' : '#e07000' }}>
+            ⚙
+          </button>
           {view === 'projects' && <button onClick={() => setNewProj(true)} style={S.primary}>{t.newProject}</button>}
           {view === 'meetings' && <button onClick={handleCreateMeeting} style={S.primary}>{t.newMeeting}</button>}
         </div>
@@ -321,6 +328,14 @@ export default function App() {
           onBack={() => setView('editor')}
           onWord={handleWord}
           onPDF={handlePDF}
+        />
+      )}
+
+      {showKeyModal && (
+        <ApiKeyModal
+          current={apiKey}
+          onSave={key => { setApiKey(key); localStorage.setItem('anthropic_key', key); setKeyModal(false) }}
+          onClose={() => setKeyModal(false)}
         />
       )}
     </div>
@@ -623,4 +638,43 @@ function Field({ label, children }) {
 
 function Empty({ msg }) {
   return <div style={{ color: '#aaa', textAlign: 'center', padding: '4rem 0', fontSize: 14 }}>{msg}</div>
+}
+
+// ─────────────────────────────────────────────────────────
+// API Key Modal
+// ─────────────────────────────────────────────────────────
+function ApiKeyModal({ current, onSave, onClose }) {
+  const [val, setVal] = useState(current)
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 420, maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight: 'bold', fontSize: 15, color: TEAL, marginBottom: 6 }}>Anthropic API Key</div>
+        <div style={{ fontSize: 12, color: '#777', marginBottom: 14, lineHeight: 1.6 }}>
+          Required to generate meeting minutes with AI. Your key is saved in this browser only — never sent to any server except Anthropic.{' '}
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer"
+            style={{ color: TEAL }}>Get a key →</a>
+        </div>
+        <input
+          type="password"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          placeholder="sk-ant-..."
+          style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: `1.5px solid ${TEAL}`, borderRadius: 7, fontSize: 14, marginBottom: 14, outline: 'none' }}
+          autoFocus
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose}
+            style={{ background: 'none', border: '1px solid #ccd4d6', borderRadius: 7, padding: '7px 16px', cursor: 'pointer', fontSize: 13 }}>
+            Cancel
+          </button>
+          <button onClick={() => onSave(val.trim())} disabled={!val.trim()}
+            style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 7, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 'bold', opacity: val.trim() ? 1 : 0.4 }}>
+            Save Key
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
