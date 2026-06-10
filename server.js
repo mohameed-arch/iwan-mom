@@ -1,10 +1,19 @@
 const express = require('express')
+const rateLimit = require('express-rate-limit')
 const path = require('path')
-const app = express()
 
+const app = express()
 app.use(express.json({ limit: '2mb' }))
 
-app.post('/api/proxy', async (req, res) => {
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — max 10 per minute per IP. Please wait and try again.' },
+})
+
+app.post('/api/proxy', limiter, async (req, res) => {
   const apiKey = req.headers['x-api-key']
   if (!apiKey) return res.status(400).json({ error: 'No API key provided' })
 
