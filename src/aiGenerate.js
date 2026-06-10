@@ -1,4 +1,6 @@
-export async function generateMOM(mtg, proj, lang) {
+export async function generateMOM(mtg, proj, lang, apiKey) {
+  if (!apiKey) throw new Error('No API key set. Click ⚙ to add your Anthropic API key.')
+
   const isAr = lang === 'ar'
   const attendeeStr = (mtg.attendees || [])
     .map(a => `${a.name} (${a.company}, ${a.role})`)
@@ -60,7 +62,12 @@ Return ONLY valid JSON, no text outside it:
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-allow-browser': 'true',
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 3000,
